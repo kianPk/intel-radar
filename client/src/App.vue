@@ -5,18 +5,38 @@ import { INDICATORS, MATCHES } from './demo'
 const q = ref('')
 const severity = ref('all')
 const type = ref('all')
+const tagFilters = ref([])
 const selected = ref(null)
+
+const allTags = computed(() => {
+  const set = new Set()
+  for (const i of INDICATORS) for (const t of i.tags) set.add(t)
+  return [...set].sort()
+})
 
 const indicators = computed(() => {
   let list = [...INDICATORS]
   if (severity.value !== 'all') list = list.filter((i) => i.severity === severity.value)
   if (type.value !== 'all') list = list.filter((i) => i.type === type.value)
+  if (tagFilters.value.length) {
+    list = list.filter((i) => tagFilters.value.every((t) => i.tags.includes(t)))
+  }
   if (q.value.trim()) {
     const s = q.value.trim().toLowerCase()
     list = list.filter((i) => i.value.toLowerCase().includes(s) || i.tags.some((t) => t.includes(s)))
   }
   return list.sort((a, b) => b.lastSeen - a.lastSeen)
 })
+
+function toggleTag(tag) {
+  const i = tagFilters.value.indexOf(tag)
+  if (i >= 0) tagFilters.value.splice(i, 1)
+  else tagFilters.value.push(tag)
+}
+
+function clearTagFilters() {
+  tagFilters.value = []
+}
 
 const overview = computed(() => ({
   indicators: INDICATORS.length,
@@ -73,6 +93,22 @@ function ago(ts) {
             <option>email</option>
             <option>asn</option>
           </select>
+        </div>
+        <div class="tag-bar">
+          <span class="tag-label">Tags</span>
+          <button
+            v-for="t in allTags"
+            :key="t"
+            type="button"
+            class="tag-chip"
+            :class="{ on: tagFilters.includes(t) }"
+            @click="toggleTag(t)"
+          >
+            {{ t }}
+          </button>
+          <button v-if="tagFilters.length" type="button" class="tag-clear" @click="clearTagFilters">
+            Clear filters
+          </button>
         </div>
         <div class="list">
           <button
@@ -144,6 +180,14 @@ h1 { margin: 0; font-size: 1.4rem; }
 .layout { display: grid; grid-template-columns: 1.3fr .9fr; gap: 12px; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
 .toolbar { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.tag-bar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px; }
+.tag-label { font-size: .72rem; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; margin-right: 4px; }
+.tag-chip {
+  font-size: .72rem; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line);
+  color: var(--muted); background: #0a0810;
+}
+.tag-chip.on { color: var(--lime); border-color: rgba(212,255,107,.35); background: rgba(212,255,107,.08); }
+.tag-clear { font-size: .72rem; padding: 5px 10px; border-radius: 999px; border: 1px dashed var(--line); color: var(--violet); }
 input, select { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: #0a0810; outline: none; }
 .list { display: grid; gap: 6px; max-height: 520px; overflow: auto; }
 .row {
